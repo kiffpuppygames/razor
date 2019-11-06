@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js"></script>
+</head>
+<body>
+
+    <script>
+    var config = {
+        type: Phaser.AUTO,
+        width: 1024,
+        height: 10240,  
+        physics: {
+        default: 'arcade',
+            arcade: {
+                gravity: { y: 0 },
+                debug: false
+            }
+        },      
+        scene: {
+            preload: preload,
+            create: create,
+            update: update,
+            render: render
+        }
+    };
+
+    var game = new Phaser.Game(config);
+    var cursors;
+    var ship;
+    var energyblast;
+    var energyBlastLastSpawned = 0;
+    var turretEnergyBlastLastSpawned = 0;
+    var turretHit;
+    var explosionAnimation;
+    var gameOver = false;
+    
+    var turret1;
+    var turret2;
+    var turret3;
+    var badguy1;
+    var badguy2;
+    var badguy3;
+    var badguy4;
+    var badguy5;
+    var badguy6;
+
+    function preload ()
+    {
+        this.load.audio("shoot", "assets/shoot.mp3");
+        this.load.audio("heroshoot", "assets/shoot.mp3");
+        this.load.audio("music", "assets/Orbital Colossus_0.mp3");
+        this.load.audio("explosion", "assets/explosion.wav");
+
+        this.load.atlas('dust-atlas', 'assets/shapes.png', 'assets/shapes.json');
+        this.load.text('dust', 'assets/dust.json');
+
+        this.load.atlas('thruster-atlas', 'assets/thruster/shapes.png', 'assets/thruster/shapes.json');
+        this.load.text('thruster', 'assets/thruster/thruster.json');
+
+        this.load.image('layer1', 'assets/Leve1_layer1.png');
+        this.load.image('layer2', 'assets/Leve1_layer2.png');
+        this.load.image('layer3', 'assets/Leve1_layer3.png');
+        this.load.image('layer4', 'assets/stars.png');
+        this.load.image('ship', 'assets/shipconcept.png');
+        this.load.image('energyblast', 'assets/energyblast.png');
+        this.load.image('badguy1', 'assets/badguy1.png');
+
+        this.load.image('turret_base', 'assets/turret1_base.png');
+        this.load.spritesheet('turret_top_ss', 'assets/turret_top_ss.png', { frameWidth: 107, frameHeight: 137 });
+
+        this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 128, frameHeight: 128 });
+    }
+
+    function create ()
+    {        
+        this.shoot = this.sound.add('shoot');
+        this.heroshoot = this.sound.add('heroshoot');
+        this.music = this.sound.add('music');
+        this.explosion = this.sound.add('explosion');
+        this.music.volume = 0.5;
+        this.music.loop = true;
+        this.music.play();
+        
+        this.layer4 = this.add.tileSprite(512, 5120, game.config.width, game.config.height, "layer4"); 
+        this.layer3 = this.add.tileSprite(512, 5120, game.config.width, game.config.height, "layer3");        
+        this.layer2 = this.add.tileSprite(512, 5120, game.config.width, game.config.height, "layer2");
+        this.layer1 = this.add.tileSprite(512, 5120, game.config.width, game.config.height, "layer1");
+
+        this.p = this.add.particles('dust-atlas',  new Function('return ' + this.cache.text.get('dust'))());
+        this.p.y = 9285;
+        this.p.x = 0;        
+        
+        this.cameras.main.setBounds(0, 0, 1024, 955);
+        //this.cameras.main.zoom = 0.08;
+        this.cameras.main.x = 0;
+        this.cameras.main.y = -9285;
+
+        ship = this.physics.add.sprite(512, 10240, 'ship').setScale(0.3);
+        ship.health = 300;
+        ship.setCollideWorldBounds(true);        
+
+        this.anims.create({
+            key: 'turret',
+            frames: this.anims.generateFrameNumbers('turret_top_ss', { start: 0, end: 1 }),
+            frameRate: 10,
+            repeat: 1
+        });
+
+        this.anims.create({
+            key: 'explosion',
+            frames: this.anims.generateFrameNumbers('explosion', { start: 0, end: 6 }),
+            frameRate: 10,
+            repeat: 1
+        });
+        
+        turret1 = this.physics.add.sprite(193, 10000, 'turret_top_ss');
+        turret1.health = 100;
+        
+        turret2 = this.physics.add.sprite(512 + (512 - 193), 10000, 'turret_top_ss');
+        turret2.health = 100;
+        
+        turret3 = this.physics.add.sprite(600, 9350, 'turret_top_ss');
+        turret3.health = 100;
+        
+        badguy1 = this.physics.add.sprite(250, 9600, 'badguy1').setScale(0.2);
+        badguy1.health = 200;
+
+        badguy2 = this.physics.add.sprite(350, 9600, 'badguy1').setScale(0.2);
+        badguy2.health = 200;
+
+        badguy3 = this.physics.add.sprite(450, 9600, 'badguy1').setScale(0.2);
+        badguy3.health = 200;
+
+        badguy4 = this.physics.add.sprite(550, 9600, 'badguy1').setScale(0.2);
+        badguy4.health = 200;
+
+        badguy5 = this.physics.add.sprite(650, 9600, 'badguy1').setScale(0.2);
+        badguy5.health = 200;
+
+        badguy6 = this.physics.add.sprite(750, 9600, 'badguy1').setScale(0.2);
+        badguy6.health = 200;
+
+        //  Input Events
+        cursors = this.input.keyboard.createCursorKeys();   
+    }
+
+    let shipHit = function() {
+
+        this.bulletToDestroy.destroy();
+        ship.health -= 10;
+
+        if (ship.health > 0)
+        {
+            var tween = this.scope.tweens.add({
+                targets: ship,
+                test: ship.setTint(0xff0000),
+                //alpha: { start: 1, to: 0 },
+                // alpha: 1,
+                // alpha: '+=1',
+                ease: 'Cubic.easeOut',       // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                duration: 100,
+                repeat: 0,            // -1: infinity
+                yoyo: false,
+                onComplete: function () {ship.setTint(0xffffff);}
+            });
+        }
+        else
+        {     
+            this.scope.cameras.main.shake(400, 0.01);
+
+            let animComplete = function() {
+                ship.destroy();
+                gameOver = true;
+            }
+
+            expl = this.scope.physics.add.sprite(ship.x, ship.y, 'explosion');
+            ship.destroy();
+            expl.on('animationcomplete', animComplete, expl);
+            this.scope.explosion.play();
+            expl.anims.play('explosion');
+        }
+        //ship.setTint(0xff0000);
+    }
+
+    let enemyHit = function(scope) {
+            turrethit = this.turrethit;
+            this.bulletToDestroy.destroy();
+            console.log
+            if (turrethit.health <= 0) {
+
+                this.scope.cameras.main.shake(300, 0.001);
+
+                turrethit.stopShooting = true;
+
+                let animComplete = function() {
+                    this.destroy();
+                }
+
+                expl = this.scope.physics.add.sprite(turrethit.x, turrethit.y, 'explosion');
+                turrethit.destroy();
+                expl.on('animationcomplete', animComplete, expl);
+                this.scope.explosion.play();
+                expl.anims.play('explosion');
+            }
+            else {
+                
+                turrethit.health -= 10;
+
+                var tween = this.scope.tweens.add({
+                    targets: turrethit,
+                    test: turrethit.setTint(0xff0000),
+                    //alpha: { start: 1, to: 0 },
+                    // alpha: 1,
+                    // alpha: '+=1',
+                    ease: 'Cubic.easeOut',       // 'Cubic', 'Elastic', 'Bounce', 'Back'
+                    duration: 100,
+                    repeat: 0,            // -1: infinity
+                    yoyo: true,  
+                    onComplete: function () {turrethit.setTint(0xffffff);}          
+                });
+            }
+        }
+
+    function update(timestamp) {
+
+        if(!gameOver)
+        {
+
+            //this.layer1.tilePositionY -= 2;
+            this.layer2.tilePositionY -= 1;
+            this.layer3.tilePositionY -= 0.2;
+            this.layer4.tilePositionY -= 0.1;
+            
+            //Point Turrets to Player
+            var shipPoint = new Phaser.Geom.Point(ship.x,ship.y);
+
+            var turretPoint1 = new Phaser.Geom.Point(turret1.x, turret1.y);
+            var rotation = Phaser.Math.Angle.BetweenPoints(shipPoint, turretPoint1);               
+            turret1.rotation = rotation;
+            turret1.angle -= 90;
+
+            var turretPoint2 = new Phaser.Geom.Point(turret2.x, turret2.y);
+            var rotation = Phaser.Math.Angle.BetweenPoints(shipPoint, turretPoint2);               
+            turret2.rotation = rotation;
+            turret2.angle -= 90;
+
+            var turretPoint3 = new Phaser.Geom.Point(turret3.x, turret3.y);
+            var rotation = Phaser.Math.Angle.BetweenPoints(shipPoint, turretPoint3);               
+            turret3.rotation = rotation;
+            turret3.angle -= 90;
+
+            //Turrets Fire
+            if (timestamp - turretEnergyBlastLastSpawned > 350)
+            {                      
+                if (Phaser.Math.Distance.Between(turret1.x, turret1.y, ship.x, ship.y) < 500)
+                {
+                    if (!turret1.stopShooting) {
+                        turret1_turretblast1 = this.physics.add.sprite(turret1.x + 25, turret1.y - 15, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret1_turretblast1, shipHit, null, { scope: this, bulletToDestroy: turret1_turretblast1 });
+                        Phaser.Actions.RotateAround([turret1_turretblast1], turret1, turret1.rotation)
+                        turret1_turretblast1.rotation += turret1.rotation;  
+                        var velocity1 = this.physics.velocityFromRotation(turret1.rotation - 1.55, 600);
+                        turret1_turretblast1.setVelocityX(velocity1.x);
+                        turret1_turretblast1.setVelocityY(velocity1.y);
+                        this.shoot.play();
+                    
+
+                        turret1_turretblast2 = this.physics.add.sprite(turret1.x - 20, turret1.y - 20, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret1_turretblast2, shipHit, null, { scope: this, bulletToDestroy: turret1_turretblast2 });
+                        Phaser.Actions.RotateAround([turret1_turretblast2], turret1, turret1.rotation)
+                        turret1_turretblast2.rotation += turret1.rotation;  
+                        var velocity1 = this.physics.velocityFromRotation(turret1.rotation - 1.55, 600);
+                        turret1_turretblast2.setVelocityX(velocity1.x);
+                        turret1_turretblast2.setVelocityY(velocity1.y);
+                        this.shoot.play();
+                    }
+                }
+
+                if (Phaser.Math.Distance.Between(turret2.x, turret2.y, ship.x, ship.y) < 500)
+                {
+                    if (!turret2.stopShooting) {
+                        turret2_turretblast1 = this.physics.add.sprite(turret2.x + 25, turret2.y - 15, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret2_turretblast1, shipHit, null, { scope: this, bulletToDestroy: turret2_turretblast1 });
+                        Phaser.Actions.RotateAround([turret2_turretblast1], turret2, turret2.rotation)  
+                        turret2_turretblast1.rotation += turret2.rotation;       
+                        var velocity2 = this.physics.velocityFromRotation(turret2.rotation - 1.55, 600);
+                        turret2_turretblast1.setVelocityX(velocity2.x);
+                        turret2_turretblast1.setVelocityY(velocity2.y);
+                        this.shoot.play();
+
+                        turret2_turretblast2 = this.physics.add.sprite(turret2.x - 20, turret2.y - 20, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret2_turretblast2, shipHit, null, { scope: this, bulletToDestroy: turret2_turretblast2 });
+                        Phaser.Actions.RotateAround([turret2_turretblast2], turret2, turret2.rotation)
+                        turret2_turretblast2.rotation += turret2.rotation;  
+                        var velocity2 = this.physics.velocityFromRotation(turret2.rotation - 1.55, 600);
+                        turret2_turretblast2.setVelocityX(velocity2.x);
+                        turret2_turretblast2.setVelocityY(velocity2.y);
+                        this.shoot.play();
+                    }
+                }
+
+                if (Phaser.Math.Distance.Between(turret3.x, turret3.y, ship.x, ship.y) < 500)
+                {
+                    if (!turret3.stopShooting) {                
+                        turret3_turretblast1 = this.physics.add.sprite(turret3.x + 25, turret3.y - 15, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret3_turretblast1, shipHit, null, { scope: this, bulletToDestroy: turret3_turretblast1 });
+                        Phaser.Actions.RotateAround([turret3_turretblast1], turret3, turret3.rotation)  
+                        turret3_turretblast1.rotation += turret3.rotation;       
+                        var velocity2 = this.physics.velocityFromRotation(turret3.rotation - 1.55, 600);
+                        turret3_turretblast1.setVelocityX(velocity2.x);
+                        turret3_turretblast1.setVelocityY(velocity2.y);
+                        this.shoot.play();
+
+                        turret3_turretblast2 = this.physics.add.sprite(turret3.x - 20, turret3.y - 20, 'energyblast').setScale(0.045);
+                        this.physics.add.collider(ship, turret3_turretblast2, shipHit, null, { scope: this, bulletToDestroy: turret3_turretblast2 });
+                        Phaser.Actions.RotateAround([turret3_turretblast2], turret3, turret3.rotation)
+                        turret3_turretblast2.rotation += turret3.rotation;  
+                        var velocity2 = this.physics.velocityFromRotation(turret3.rotation - 1.55, 600);
+                        turret3_turretblast2.setVelocityX(velocity2.x);
+                        turret3_turretblast2.setVelocityY(velocity2.y);
+                        this.shoot.play();
+                    }
+                }
+
+                turretEnergyBlastLastSpawned = timestamp;
+            }
+
+            
+
+            if (cursors.space.isDown) {
+
+                if (timestamp - energyBlastLastSpawned > 150)
+                {
+                    var scope = this;
+                    
+                    energyblast1 = this.physics.add.sprite(ship.x - 42, ship.y - 20, 'energyblast').setScale(0.045); 
+                    this.physics.add.overlap(energyblast1, turret1, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: turret1});   
+                    this.physics.add.overlap(energyblast1, turret2, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: turret2});
+                    this.physics.add.overlap(energyblast1, turret3, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: turret3});
+
+                    this.physics.add.overlap(energyblast1, badguy1, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy1});
+                    this.physics.add.overlap(energyblast1, badguy2, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy2});
+                    this.physics.add.overlap(energyblast1, badguy3, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy3});
+                    this.physics.add.overlap(energyblast1, badguy4, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy4});
+                    this.physics.add.overlap(energyblast1, badguy5, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy5});
+                    this.physics.add.overlap(energyblast1, badguy6, enemyHit, null, { scope: this, bulletToDestroy: energyblast1, turrethit: badguy6});
+
+                    energyblast1.setVelocityY(-800);                
+                    energyblast1.setVelocityX(ship.body.velocity.x);
+                    this.heroshoot.play();
+
+                    energyblast2 = this.physics.add.sprite(ship.x + 42, ship.y - 20, 'energyblast').setScale(0.045);
+                    this.physics.add.overlap(energyblast2, turret1, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: turret1});
+                    this.physics.add.overlap(energyblast2, turret2, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: turret2});
+                    this.physics.add.overlap(energyblast2, turret3, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: turret3});
+
+                    this.physics.add.overlap(energyblast2, badguy1, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy1});
+                    this.physics.add.overlap(energyblast2, badguy2, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy2});
+                    this.physics.add.overlap(energyblast2, badguy3, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy3});
+                    this.physics.add.overlap(energyblast2, badguy4, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy4});
+                    this.physics.add.overlap(energyblast2, badguy5, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy5});
+                    this.physics.add.overlap(energyblast2, badguy6, enemyHit, null, { scope: this, bulletToDestroy: energyblast2, turrethit: badguy6});
+                    
+                    energyblast2.setVelocityY(-800);
+                    energyblast2.setVelocityX(ship.body.velocity.x);
+                    this.heroshoot.play();
+
+                    energyBlastLastSpawned = timestamp;
+                }
+            }
+
+            if (this.cameras.main.y < 0) {
+                this.cameras.main.y += 0;
+                this.p.y -= 0;
+                
+            }
+
+            try {
+
+                if (this.cameras.main.y < 0 && cursors.down.isUp && cursors.up.isUp && cursors.right.isUp && cursors.left.isUp) {            
+                    ship.setVelocityY(-80);
+                    ship.setVelocityX(0);
+                    
+                } else if (this.cameras.main.y < 0) {
+                    if (cursors.left.isDown)
+                    {
+                        ship.setVelocityX(-600);                
+                    }
+                    else if (cursors.right.isDown)
+                    {
+                        ship.setVelocityX(600);                
+                    }
+                    else
+                    {               
+                        ship.setVelocityX(0);                
+                    }
+
+                    if (cursors.up.isDown)
+                    {
+                        ship.setVelocityY(-600);                
+                    }  
+                    else if (cursors.down.isDown)
+                    {
+                        ship.setVelocityY(600);              
+                    } 
+                    else
+                    {     
+                        ship.setVelocityY(0);                
+                    }
+                } else {
+                    if (cursors.left.isDown)
+                    {
+                        ship.setVelocityX(-600);                
+                    }
+                    else if (cursors.right.isDown)
+                    {
+                        ship.setVelocityX(600);                
+                    }
+                    else 
+                    {
+                        ship.setVelocityX(0);                
+                    }
+
+                    if (cursors.up.isDown)
+                    {
+                        ship.setVelocityY(-600);                
+                    }  
+                    else if (cursors.down.isDown)
+                    {
+                        ship.setVelocityY(600);              
+                    } 
+                    else 
+                    {
+                        ship.setVelocityY(0);
+                    }
+                }
+            }
+            catch
+            {
+                
+            }
+        }
+    }
+
+    function render() {
+        this.debug.cameraInfo(this.cameras.main, 32, 32);
+    }
+
+    </script>
+
+</body>
+</html>
