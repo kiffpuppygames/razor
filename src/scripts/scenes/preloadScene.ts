@@ -4,24 +4,28 @@ export default class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-      this.load.audio("shoot", "assets/shoot.mp3");
-      this.load.audio("heroshoot", "assets/shoot.mp3");
-      this.load.audio("music", "assets/Orbital Colossus_0.mp3");
-      this.load.audio("explosion", "assets/explosion.wav");
-      this.load.atlas('dust-atlas', 'assets/shapes.png', 'assets/shapes.json');
-      this.load.text('dust', 'assets/dust.json');
-      this.load.atlas('thruster-atlas', 'assets/thruster/shapes.png', 'assets/thruster/shapes.json');
-      this.load.text('thruster', 'assets/thruster/thruster.json');
-      this.load.image('layer1', 'assets/Leve1_layer1.png');
-      this.load.image('layer2', 'assets/Leve1_layer2.png');
-      this.load.image('layer3', 'assets/Leve1_layer3.png');
-      this.load.image('layer4', 'assets/stars.png');
-      this.load.image('ship', 'assets/shipconcept.png');
-      this.load.image('energyblast', 'assets/energyblast.png');
-      this.load.image('badguy1', 'assets/badguy1.png');
-      this.load.image('turret_base', 'assets/turret1_base.png');
-      this.load.spritesheet('turret_top_ss', 'assets/turret_top_ss.png', { frameWidth: 107, frameHeight: 137 });
-      this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 128, frameHeight: 128 });
+    this.load.image('phaser-logo', 'assets/img/phaser-logo.png')
+
+    this.load.audio('shoot', 'assets/shoot.mp3')
+    this.load.audio('heroshoot', 'assets/shoot.mp3')
+    this.load.audio('music', 'assets/Orbital Colossus_0.mp3')
+    this.load.audio('explosion', 'assets/explosion.wav')
+    this.load.atlas('dust-atlas', 'assets/shapes.png', 'assets/shapes.json')
+    this.load.text('dust', 'assets/dust.json')
+    this.load.atlas('thruster-atlas', 'assets/thruster/shapes.png', 'assets/thruster/shapes.json')
+    this.load.text('thruster', 'assets/thruster/thruster.json')
+    
+    this.load.image('ship', 'assets/shipconcept.png')
+    this.load.image('energyblast', 'assets/energyblast.png')
+    this.load.image('badguy1', 'assets/badguy1.png')
+    this.load.image('turret_base', 'assets/turret1_base.png')
+    this.load.spritesheet('turret_top_ss', 'assets/turret_top_ss.png', { frameWidth: 107, frameHeight: 137 })
+    this.load.spritesheet('explosion', 'assets/explosion.png', { frameWidth: 128, frameHeight: 128 })
+
+    this.load.image('close-background', 'assets/Leve1_layer1.png');
+    this.load.image('middle-background', 'assets/Leve1_layer2.png');
+    this.load.image('far-background', 'assets/Leve1_layer3.png');
+    this.load.image('star-field', 'assets/stars.png');
   }
 
   create() {

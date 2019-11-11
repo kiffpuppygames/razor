@@ -1,16 +1,20 @@
 import PhaserLogo from '../objects/phaserLogo'
 import FpsText from '../objects/fpsText'
+import Layer from '../objects/layer';
+import Ship from '../objects/ship';
+import Bullet from '../objects/bullet';
 
 export default class MainScene extends Phaser.Scene {
   fpsText: Phaser.GameObjects.Text;  
   cursors: any;
-  ship: any;
   energyblast: any;
   energyBlastLastSpawned: any;
   turretEnergyBlastLastSpawned: any;
   turretHit: any;
   explosionAnimation: any;
   gameOver: any;
+
+  ship: Ship;
   
   turret1: any;
   turret2: any;
@@ -25,11 +29,25 @@ export default class MainScene extends Phaser.Scene {
   music: Phaser.Sound.BaseSound;
   heroshoot: Phaser.Sound.BaseSound;
   explosion: Phaser.Sound.BaseSound;
-  layer4: Phaser.GameObjects.TileSprite;
-  layer3: Phaser.GameObjects.TileSprite;
-  layer2: Phaser.GameObjects.TileSprite;
-  layer1: Phaser.GameObjects.TileSprite;
+  
   p: Phaser.GameObjects.Particles.ParticleEmitterManager;
+  
+  //Backgrounds
+  starField: any;
+  farBackground: Layer;
+  middleBackground: Layer;
+  closeBackground: Phaser.GameObjects.TileSprite;
+
+  turret1_turretblast1: Bullet;
+  turret2_turretblast1: Bullet;
+  turret2_turretblast2: Bullet;
+  expl: Phaser.Physics.Arcade.Sprite;
+  energyblast1: Bullet;
+  heroBulletSound: Phaser.Sound.BaseSound;
+  turret3_turretblast1: Bullet;
+  turret3_turretblast2: Bullet;
+  turret1_turretblast2: Bullet;
+  energyblast2: Bullet;
 
   constructor() {
     super({ key: 'MainScene' })
@@ -59,25 +77,26 @@ export default class MainScene extends Phaser.Scene {
     this.heroshoot = this.sound.add('heroshoot');
     this.music = this.sound.add('music');
     this.explosion = this.sound.add('explosion');
-    //this.music.volume = 0.5;
-    //this.music.loop = true;
+    this.heroBulletSound = this.sound.add('heroshoot');
     this.music.play();
     
-    this.layer4 = this.add.tileSprite(512, 5120, +this.game.config.width, +this.game.config.height, "layer4"); 
-    this.layer3 = this.add.tileSprite(512, 5120, +this.game.config.width, +this.game.config.height, "layer3");        
-    this.layer2 = this.add.tileSprite(512, 5120, +this.game.config.width, +this.game.config.height, "layer2");
-    this.layer1 = this.add.tileSprite(512, 5120, +this.game.config.width, +this.game.config.height, "layer1");
+    this.starField = new Layer(this, 512, 5120, +this.game.config.width, +this.game.config.height, "star-field");
+    this.farBackground = new Layer(this, 512, 5120, +this.game.config.width, +this.game.config.height, "far-background");      
+    this.middleBackground = new Layer(this, 512, 5120, +this.game.config.width, +this.game.config.height, "middle-background");  
+    this.closeBackground = new Layer(this, 512, 5120, +this.game.config.width, +this.game.config.height, "close-background"); 
+    
     this.p = this.add.particles('dust-atlas',  new Function('return ' + this.cache.text.get('dust'))());
     this.p.y = 9285;
     this.p.x = 0;        
     
-    this.cameras.main.setBounds(0, 0, 1024, 955);
+    
+    this.cameras.main.setBounds(0, 0, 1024, window.innerHeight);
     //this.cameras.main.zoom = 0.08;
     this.cameras.main.x = 0;
-    this.cameras.main.y = -9285;
-    this.ship = this.physics.add.sprite(512, 10240, 'ship').setScale(0.3);
-    this.ship.health = 300;
-    this.ship.setCollideWorldBounds(true);        
+    this.cameras.main.y = -10240 + window.innerHeight;
+
+    this.ship = new Ship(this, 512, 10240, 'ship', 300, 0.4);
+
     this.anims.create({
         key: 'turret',
         frames: this.anims.generateFrameNumbers('turret_top_ss', { start: 0, end: 1 }),
@@ -124,9 +143,9 @@ export default class MainScene extends Phaser.Scene {
       if(!this.gameOver)
       {
           //this.layer1.tilePositionY -= 2;
-          this.layer2.tilePositionY -= 1;
-          this.layer3.tilePositionY -= 0.2;
-          this.layer4.tilePositionY -= 0.1;
+          this.middleBackground.tilePositionY -= 1;
+          this.farBackground.tilePositionY -= 0.2;
+          this.starField.tilePositionY -= 0.1;
           
           //Point Turrets to Player
           var shipPoint = new Phaser.Geom.Point(this.ship.x,this.ship.y);
@@ -148,65 +167,55 @@ export default class MainScene extends Phaser.Scene {
               if (Phaser.Math.Distance.Between(this.turret1.x, this.turret1.y, this.ship.x, this.ship.y) < 500)
               {
                   if (!this.turret1.stopShooting) {
-                      var turret1_turretblast1 = this.physics.add.sprite(this.turret1.x + 25, this.turret1.y - 15, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret1_turretblast1, this.shipHit, undefined, { scope: this, bulletToDestroy: turret1_turretblast1 });
-                      Phaser.Actions.RotateAround([turret1_turretblast1], this.turret1, this.turret1.rotation)
-                      turret1_turretblast1.rotation += this.turret1.rotation;  
-                      var velocity1 = this.physics.velocityFromRotation(this.turret1.rotation - 1.55, 600);
-                      turret1_turretblast1.setVelocityX(velocity1.x);
-                      turret1_turretblast1.setVelocityY(velocity1.y);
-                      this.shoot.play();
-                  
-                      var turret1_turretblast2 = this.physics.add.sprite(this.turret1.x - 20, this.turret1.y - 20, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret1_turretblast2, this.shipHit, undefined, { scope: this, bulletToDestroy: turret1_turretblast2 });
-                      Phaser.Actions.RotateAround([turret1_turretblast2], this.turret1, this.turret1.rotation)
-                      turret1_turretblast2.rotation += this.turret1.rotation;  
-                      var velocity1 = this.physics.velocityFromRotation(this.turret1.rotation - 1.55, 600);
-                      turret1_turretblast2.setVelocityX(velocity1.x);
-                      turret1_turretblast2.setVelocityY(velocity1.y);
-                      this.shoot.play();
+                    this.turret1_turretblast1 = new Bullet(this, this.turret1.x + 25, this.turret1.y - 15, 'energyblast', 0.045, this.shoot);
+                    this.physics.add.overlap(this.ship, this.turret1_turretblast1, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret1_turretblast1 });
+                    Phaser.Actions.RotateAround([this.turret1_turretblast1], this.turret1, this.turret1.rotation)
+                    this.turret1_turretblast1.rotation += this.turret1.rotation;  
+                    var velocity1 = this.physics.velocityFromRotation(this.turret1.rotation - 1.55, 600);
+                    this.turret1_turretblast1.fire(velocity1.x, velocity1.y);
+                
+                    this.turret1_turretblast2 = new Bullet(this, this.turret1.x - 20, this.turret1.y - 20, 'energyblast', 0.045, this.shoot);
+                    this.physics.add.overlap(this.ship, this.turret1_turretblast2, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret1_turretblast2 });
+                    Phaser.Actions.RotateAround([this.turret1_turretblast2], this.turret1, this.turret1.rotation)
+                    this.turret1_turretblast2.rotation += this.turret1.rotation;  
+                    var velocity1 = this.physics.velocityFromRotation(this.turret1.rotation - 1.55, 600);
+                    this.turret1_turretblast2.fire(velocity1.x, velocity1.y);
                   }
               }
               if (Phaser.Math.Distance.Between(this.turret2.x, this.turret2.y, this.ship.x, this.ship.y) < 500)
               {
                   if (!this.turret2.stopShooting) {
-                      var turret2_turretblast1 = this.physics.add.sprite(this.turret2.x + 25, this.turret2.y - 15, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret2_turretblast1, this.shipHit(turret2_turretblast1), undefined, { scope: this, bulletToDestroy: turret2_turretblast1 });
-                      Phaser.Actions.RotateAround([turret2_turretblast1], this.turret2, this.turret2.rotation)  
-                      turret2_turretblast1.rotation += this.turret2.rotation;       
+                      this.turret2_turretblast1 = new Bullet(this, this.turret2.x + 25, this.turret2.y - 15, 'energyblast', 0.045, this.shoot);
+                      this.physics.add.overlap(this.ship, this.turret2_turretblast1, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret2_turretblast1 });
+                      Phaser.Actions.RotateAround([this.turret2_turretblast1], this.turret2, this.turret2.rotation)  
+                      this.turret2_turretblast1.rotation += this.turret2.rotation;       
                       var velocity2 = this.physics.velocityFromRotation(this.turret2.rotation - 1.55, 600);
-                      turret2_turretblast1.setVelocityX(velocity2.x);
-                      turret2_turretblast1.setVelocityY(velocity2.y);
-                      this.shoot.play();
-                      var turret2_turretblast2 = this.physics.add.sprite(this.turret2.x - 20, this.turret2.y - 20, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret2_turretblast2, this.shipHit(turret2_turretblast2), undefined, { scope: this, bulletToDestroy: turret2_turretblast2 });
-                      Phaser.Actions.RotateAround([turret2_turretblast2], this.turret2, this.turret2.rotation)
-                      turret2_turretblast2.rotation += this.turret2.rotation;  
+                      this.turret2_turretblast1.fire(velocity2.x, velocity2.y);
+
+                      this.turret2_turretblast2 = new Bullet(this, this.turret2.x - 20, this.turret2.y - 20, 'energyblast', 0.045, this.shoot);
+                      this.physics.add.overlap(this.ship, this.turret2_turretblast2, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret2_turretblast2 });
+                      Phaser.Actions.RotateAround([this.turret2_turretblast2], this.turret2, this.turret2.rotation)
+                      this.turret2_turretblast2.rotation += this.turret2.rotation;  
                       var velocity2 = this.physics.velocityFromRotation(this.turret2.rotation - 1.55, 600);
-                      turret2_turretblast2.setVelocityX(velocity2.x);
-                      turret2_turretblast2.setVelocityY(velocity2.y);
-                      this.shoot.play();
+                      this.turret2_turretblast2.fire(velocity2.x, velocity2.y);
                   }
               }
               if (Phaser.Math.Distance.Between(this.turret3.x, this.turret3.y, this.ship.x, this.ship.y) < 500)
               {
-                  if (!this.turret3.stopShooting) {                
-                      var turret3_turretblast1 = this.physics.add.sprite(this.turret3.x + 25, this.turret3.y - 15, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret3_turretblast1, this.shipHit(turret3_turretblast1), undefined, { scope: this, bulletToDestroy: turret3_turretblast1 });
-                      Phaser.Actions.RotateAround([turret3_turretblast1], this.turret3, this.turret3.rotation)  
-                      turret3_turretblast1.rotation += this.turret3.rotation;       
+                  if (!this.turret3.stopShooting) {    
+                      this.turret3_turretblast1 = new Bullet(this, this.turret3.x + 25, this.turret3.y - 15, 'energyblast', 0.045, this.shoot);
+                      this.physics.add.overlap(this.ship, this.turret3_turretblast1, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret3_turretblast1 });
+                      Phaser.Actions.RotateAround([this.turret3_turretblast1], this.turret3, this.turret3.rotation)  
+                      this.turret3_turretblast1.rotation += this.turret3.rotation;       
                       var velocity2 = this.physics.velocityFromRotation(this.turret3.rotation - 1.55, 600);
-                      turret3_turretblast1.setVelocityX(velocity2.x);
-                      turret3_turretblast1.setVelocityY(velocity2.y);
-                      this.shoot.play();
-                      var turret3_turretblast2 = this.physics.add.sprite(this.turret3.x - 20, this.turret3.y - 20, 'energyblast').setScale(0.045);
-                      this.physics.add.collider(this.ship, turret3_turretblast2, this.shipHit(turret3_turretblast2), undefined, this);
-                      Phaser.Actions.RotateAround([turret3_turretblast2], this.turret3, this.turret3.rotation)
-                      turret3_turretblast2.rotation += this.turret3.rotation;  
+                      this.turret3_turretblast1.fire(velocity2.x, velocity2.y);
+
+                      this.turret3_turretblast2 = new Bullet(this, this.turret3.x - 20, this.turret3.y - 20, 'energyblast', 0.045, this.shoot);                      
+                      this.physics.add.overlap(this.ship, this.turret3_turretblast2, this.shipHit, undefined, { scope: this, bulletToDestroy: this.turret3_turretblast1 });
+                      Phaser.Actions.RotateAround([this.turret3_turretblast2], this.turret3, this.turret3.rotation)
+                      this.turret3_turretblast2.rotation += this.turret3.rotation;  
                       var velocity2 = this.physics.velocityFromRotation(this.turret3.rotation - 1.55, 600);
-                      turret3_turretblast2.setVelocityX(velocity2.x);
-                      turret3_turretblast2.setVelocityY(velocity2.y);
-                      this.shoot.play();
+                      this.turret3_turretblast2.fire(velocity2.x, velocity2.y);
                   }
               }
               this.turretEnergyBlastLastSpawned = timestamp;
@@ -214,49 +223,43 @@ export default class MainScene extends Phaser.Scene {
           
           if (this.cursors.space.isDown) {
               if (timestamp - this.energyBlastLastSpawned > 150)
-              {
-                  var scope = this;
+              {                  
+                  this.energyblast1 = new Bullet(this, this.ship.x - 42, this.ship.y - 20, 'energyblast', 0.045, this.heroBulletSound); 
+                  this.physics.add.overlap(this.energyblast1, this.turret1, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.turret1});   
+                  this.physics.add.overlap(this.energyblast1, this.turret2, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.turret2});
+                  this.physics.add.overlap(this.energyblast1, this.turret3, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.turret3});
+                  this.physics.add.overlap(this.energyblast1, this.badguy1, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy1});
+                  this.physics.add.overlap(this.energyblast1, this.badguy2, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy2});
+                  this.physics.add.overlap(this.energyblast1, this.badguy3, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy3});
+                  this.physics.add.overlap(this.energyblast1, this.badguy4, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy4});
+                  this.physics.add.overlap(this.energyblast1, this.badguy5, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy5});
+                  this.physics.add.overlap(this.energyblast1, this.badguy6, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast1, enemyhit: this.badguy6});
+                  this.energyblast1.fire(this.ship.body.velocity.x, -800);
                   
-                  var energyblast1 = this.physics.add.sprite(this.ship.x - 42, this.ship.y - 20, 'energyblast').setScale(0.045); 
-                  this.physics.add.overlap(energyblast1, this.turret1, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.turret1});   
-                  this.physics.add.overlap(energyblast1, this.turret2, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.turret2});
-                  this.physics.add.overlap(energyblast1, this.turret3, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.turret3});
-                  this.physics.add.overlap(energyblast1, this.badguy1, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy1});
-                  this.physics.add.overlap(energyblast1, this.badguy2, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy2});
-                  this.physics.add.overlap(energyblast1, this.badguy3, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy3});
-                  this.physics.add.overlap(energyblast1, this.badguy4, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy4});
-                  this.physics.add.overlap(energyblast1, this.badguy5, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy5});
-                  this.physics.add.overlap(energyblast1, this.badguy6, this.enemyHit(energyblast1, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast1, turrethit: this.badguy6});
-                  energyblast1.setVelocityY(-800);                
-                  energyblast1.setVelocityX(this.ship.body.velocity.x);
-                  this.heroshoot.play();
-                  var energyblast2 = this.physics.add.sprite(this.ship.x + 42, this.ship.y - 20, 'energyblast').setScale(0.045);
-                  this.physics.add.overlap(energyblast2, this.turret1, this.enemyHit(energyblast2, this.turret1), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.turret1});
-                  this.physics.add.overlap(energyblast2, this.turret2, this.enemyHit(energyblast2, this.turret2), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.turret2});
-                  this.physics.add.overlap(energyblast2, this.turret3, this.enemyHit(energyblast2, this.turret3), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.turret3});
-                  this.physics.add.overlap(energyblast2, this.badguy1, this.enemyHit(energyblast2, this.badguy1), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy1});
-                  this.physics.add.overlap(energyblast2, this.badguy2, this.enemyHit(energyblast2, this.badguy2), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy2});
-                  this.physics.add.overlap(energyblast2, this.badguy3, this.enemyHit(energyblast2, this.badguy3), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy3});
-                  this.physics.add.overlap(energyblast2, this.badguy4, this.enemyHit(energyblast2, this.badguy4), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy4});
-                  this.physics.add.overlap(energyblast2, this.badguy5, this.enemyHit(energyblast2, this.badguy5), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy5});
-                  this.physics.add.overlap(energyblast2, this.badguy6, this.enemyHit(energyblast2, this.badguy6), undefined, { scope: this, bulletToDestroy: energyblast2, turrethit: this.badguy6});
+                  this.energyblast2 = new Bullet(this, this.ship.x + 42, this.ship.y - 20, 'energyblast', 0.045, this.heroBulletSound);
+                  this.physics.add.overlap(this.energyblast2, this.turret1, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.turret1});
+                  this.physics.add.overlap(this.energyblast2, this.turret2, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.turret2});
+                  this.physics.add.overlap(this.energyblast2, this.turret3, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.turret3});
+                  this.physics.add.overlap(this.energyblast2, this.badguy1, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.badguy1});
+                  this.physics.add.overlap(this.energyblast2, this.badguy2, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.badguy2});
+                  this.physics.add.overlap(this.energyblast2, this.badguy3, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.badguy3});
+                  this.physics.add.overlap(this.energyblast2, this.badguy4, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.badguy4});
+                  this.physics.add.overlap(this.energyblast2, this.badguy5, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit: this.badguy5});
+                  this.physics.add.overlap(this.energyblast2, this.badguy6, this.enemyHit, undefined, { scope: this, bulletToDestroy: this.energyblast2, enemyhit : this.badguy6});
+                  this.energyblast2.fire(this.ship.body.velocity.x, -800);  
                   
-                  energyblast2.setVelocityY(-800);
-                  energyblast2.setVelocityX(this.ship.body.velocity.x);
-                  this.heroshoot.play();
                   this.energyBlastLastSpawned = timestamp;
               }
           }
           if (this.cameras.main.y < 0) {
-              this.cameras.main.y += 0;
-              this.p.y -= 0;
+            this.cameras.main.y += 0;
+            this.p.y -= 0;
               
           }
           try {
               if (this.cameras.main.y < 0 && this.cursors.down.isUp && this.cursors.up.isUp && this.cursors.right.isUp && this.cursors.left.isUp) {            
-                  this.ship.setVelocityY(-80);
-                  this.ship.setVelocityX(0);
-                  
+                  this.ship.setVelocityY(0);
+                  this.ship.setVelocityX(0);                  
               } else if (this.cameras.main.y < 0) {
                   if (this.cursors.left.isDown)
                   {
@@ -316,57 +319,59 @@ export default class MainScene extends Phaser.Scene {
       }
   }
 
-  shipHit(bulletToDestroy) {
-    bulletToDestroy.destroy();
-    this.ship.health -= 10;
-    if (this.ship.health > 0)
+  shipHit(ship, bulletToDestroy) {
+    // @ts-ignore
+    var scope = this.scope;
+
+    bulletToDestroy.destroy();    
+    ship.health -= bulletToDestroy.damage;
+    if (ship.health > 0)
     {
-        var tween = this.tweens.add({
-            targets: this.ship,
-            test: this.ship.setTint(0xff0000),
-            //alpha: { start: 1, to: 0 },
-            // alpha: 1,
-            // alpha: '+=1',
-            ease: 'Cubic.easeOut',       // 'Cubic', 'Elastic', 'Bounce', 'Back'
-            duration: 100,
-            repeat: 0,            // -1: infinity
-            yoyo: false,
-            onComplete: this.resetShipTint
-        });
+      // @ts-ignore
+      var tween = scope.tweens.add({
+          targets: ship,
+          test: ship.setTint(0xff0000),
+          //alpha: { start: 1, to: 0 },
+          // alpha: 1,
+          // alpha: '+=1',
+          ease: 'Cubic.easeOut',       // 'Cubic', 'Elastic', 'Bounce', 'Back'
+          duration: 100,
+          repeat: 0,            // -1: infinity
+          yoyo: false,
+          onComplete: function() { ship.setTint(0xffffff); }
+      });
     }
     else
-    {     
-        this.cameras.main.shake(400, 0.01);        
-        var expl = this.physics.add.sprite(this.ship.x, this.ship.y, 'explosion');
-        this.ship.destroy();
-        expl.on('animationcomplete', this.shipExplosionAnimComplete(expl), this);
-        this.explosion.play();
-        expl.anims.play('explosion');
+    {
+      scope.cameras.main.shake(400, 0.01);        
+      var expl = scope.physics.add.sprite(ship.x, ship.y, 'explosion');
+      ship.destroy();
+      expl.on('animationcomplete', function() { expl.destroy(); }, null);
+      scope.explosion.play();
+      expl.anims.play('explosion');
+      scope.gameOver = true;
     }
-    return undefined;
   }
 
-  resetShipTint() {
-    this.ship.setTint(0xffffff);
-  }
-
-  enemyHit(bulletToDestroy, turrethit) {  
-    bulletToDestroy.destroy();
-    if (turrethit.health <= 0) {
-      this.cameras.main.shake(300, 0.001);
-      turrethit.stopShooting = true;
+  enemyHit(bulletToDestroy, enemyHit) {  
+    // @ts-ignore
+    var scope = this.scope; 
+    
+    if (enemyHit.health <= 0) {
+      scope.cameras.main.shake(300, 0.001);
+      enemyHit.stopShooting = true;
       
-      var expl = this.physics.add.sprite(turrethit.x, turrethit.y, 'explosion');
-      turrethit.destroy();
-      expl.on('animationcomplete', this.enemyExplosionAnimComplete(expl), this);
-      this.explosion.play();
+      var expl = scope.physics.add.sprite(enemyHit.x, enemyHit.y, 'explosion');
+      enemyHit.destroy();
+      expl.on('animationcomplete', function () { expl.destroy(); }, this);
+      scope.explosion.play();
       expl.anims.play('explosion');
     }
     else {      
-      turrethit.health -= 10;
-      var tween = this.tweens.add({
-          targets: turrethit,
-          test: turrethit.setTint(0xff0000),
+      enemyHit.health -= bulletToDestroy.damage;
+      var tween = scope.tweens.add({
+          targets: enemyHit,
+          test: enemyHit.setTint(0xff0000),
           //alpha: { start: 1, to: 0 },
           // alpha: 1,
           // alpha: '+=1',
@@ -374,18 +379,9 @@ export default class MainScene extends Phaser.Scene {
           duration: 100,
           repeat: 0,            // -1: infinity
           yoyo: true,  
-          onComplete: function () {turrethit.setTint(0xffffff);}          
+          onComplete: function () {enemyHit.setTint(0xffffff);}          
       });
     }
-    return undefined;
-  }
-
-  enemyExplosionAnimComplete(exlp) {
-    return exlp.destroy();
-  }
-
-  shipExplosionAnimComplete(exlp) {
-    this.gameOver = true;
-    return exlp.destroy();          
+    bulletToDestroy.destroy();
   }
 }
